@@ -1,9 +1,10 @@
 const express = require("express");
-
-const { ApolloServer, gql } = require("apollo-server-express");
+const { expressMiddleware } = require("@apollo/server/express4");
+const { ApolloServer } = require("@apollo/server");
 
 // Above, we import express from express
 // Also, we import ApolloServer and gql from apollo-server-express
+// Note * for this use @apollo/server and @apollo/server/express,  ....... the pacakage express/server is not suffecient for deployment. 
 
 const { typeDefs, resolvers } = require("./schemas");
 
@@ -24,17 +25,10 @@ const PORT = process.env.PORT || 3001;
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  context: ({ req }) => {
-    // Apply authMiddleware to handle authentication and context setup
-    const context = authMiddleware({ req });
-    return context;
-    // Note* Above is very important for acessing you token.
-  },
-
 });
 
 // Above we create a new instance of the ApolloServer with our typedefs and resolvers.
-// Also, we add context for our user giving the request
+
 const app = express();
 
 // Above we create new instance of express
@@ -43,17 +37,21 @@ const startApolloServer = async () => {
   await server.start();
 
   // Above we await for our apollo server to start
-  server.applyMiddleware({ app, path: "/graphql" });
-
-  // Above, we apply our express instance as  Middleware to our server and specify a path
-
-  app.use(authMiddleware);
 
   app.use(express.urlencoded({ extended: false }));
 
   app.use(express.json());
 
   // Above are our custom middleware for our express instance to recieve data
+
+  app.use(
+    "/graphql",
+    expressMiddleware(server, {
+      context: authMiddleware,
+    })
+  );
+
+  // Above we set context and set our link with express graphql and Apollo
 
   if (process.env.NODE_ENV === "production") {
     app.use(express.static(path.join(__dirname, "../client/dist")));
